@@ -1,9 +1,13 @@
 import datetime
 import json
+import time
 import streamlit as st
 import plotly.graph_objects as go
+import plotly.express as px
 import pandas as pd
+import random
 
+from lstm import *
 from model.symbol import get_symbols
 from model.history import get_history_by_symbol
 from model.company import *
@@ -28,7 +32,7 @@ st.markdown("""
               margin: 4px;
           }
           
-          .circle-image img,  .circle-image-holder img{
+          .circle-image img, .circle-image-holder img{
               width: 100%;
               height: 100%;
               object-fit: cover;
@@ -46,11 +50,17 @@ team_data = {
 if "page" not in st.session_state:
     st.session_state["page"] = "Home"
 
+if "forcast_data" not in st.session_state:
+    st.session_state["forcast_data"] = None
+
 def home():
     st.session_state["page"] = "Home"
+def selected():
+    st.session_state["page"] = "chart"
 
 def show_chart(symbol):
     data = get_history_by_symbol(symbol)
+    st.session_state["forcast_data"] = None
     st.session_state["data"] = data
     st.session_state["page"] = "chart"
 
@@ -94,6 +104,10 @@ def show_finance_report(symbol):
     st.session_state["page"] = "report"
     st.session_state["data"] = data
 
+def get_forecast(data, next_date):
+    forcast_data = forcast(data=data, next_date=next_date)
+    st.session_state["forcast_data"] = forcast_data
+
 with st.sidebar:
     symbol = st.selectbox("Symbol",  get_symbols())
     st.button("Trang chủ", use_container_width=True, on_click=home)
@@ -116,12 +130,45 @@ if st.session_state["page"] == "chart":
                             low=data['low'],
                             close=data['close']
                         )])
-
-        fig.update_xaxes(type='category')
+        default_xaxis_params = dict(
+            title='time',
+            range=["2023-01-02", "2023-12-04"]
+        )
+        fig.update_xaxes(**default_xaxis_params)
         fig.update_layout(height=800)
 
         st.plotly_chart(fig, use_container_width=True)
-        st.dataframe(data=data, width=1000)
+        st.dataframe(data=data, width=1000, hide_index=True)
+    st.divider()
+    st.subheader("Dự báo")
+    next_date = int(st.number_input("Số ngày cần dự đoán", value=1, min_value=1, max_value=20))
+    st.button("Dự đoán", on_click=get_forecast, args=[data, next_date])
+    forcast_data = st.session_state["forcast_data"]
+    if forcast_data is not None:
+        forcast_data.rename(columns={"mlr": "close"}, inplace=True)
+        close = forcast_data["close"]
+        close = list(close.values)
+        open = [list(data["open"].values)[0]]
+        open += [close[i] for i in range(len(close) - 1)]
+        high = [i * (1 + random.randint(1, 7)/100) for i in close]
+        low = [i * (1 - random.randint(1, 7)/100) for i in close]
+        forcast_data["open"] = open
+        forcast_data["high"] = high
+        forcast_data["low"] = low
+        with st.container():
+            st.subheader("Dự đoán " + str(next_date) + " tiếp theo")
+            fc_fig = go.Figure(data=[go.Candlestick(
+                                x=forcast_data["DATE"],
+                                open=open,
+                                high=high,
+                                low=low,
+                                close=forcast_data['close']
+                            )])
+            fc_fig.update_layout(height=800)
+
+            st.plotly_chart(fc_fig, use_container_width=True)
+            st.dataframe(data=forcast_data, width=1000, hide_index=True)
+        
 elif st.session_state["page"] == "profile":
     data = st.session_state["data"]
     st.header("Thông tin cơ bản")
@@ -231,7 +278,7 @@ elif st.session_state["page"] == "holder":
                 if item["isOrganization"]:
                     st.markdown(f"""
                                     <div class="circle-image-holder">
-                                        <img src="https://fireant.vn/images/institution.png" alt="">
+                                        <img src="https://fireant.vn/images/institution.png" style="background: #fff;" alt="">
                                     </div>
                             """, unsafe_allow_html=True)
                 else:
@@ -269,7 +316,18 @@ elif st.session_state["page"] == "metrics":
 elif st.session_state["page"] == "report":
     st.write("report")
     data = st.session_state["data"]
-    data
+
+    with st.container():
+        for item in data["data"]:
+            if item:
+                cols = st.columns(9)
+                for fields in item:
+                    with st.container():
+                        with cols[0]:
+                            st.write(fields["name"])
+                        for i in range(len(fields["values"])):
+                            with cols[i + 1]:
+                                st.write(fields["values"][i]["value"] if fields["values"][i]["value"] is not None else fields["values"][i]["period"])
 else:
     team = pd.DataFrame(team_data)
     st.table(team)

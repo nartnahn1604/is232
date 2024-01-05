@@ -1,3 +1,4 @@
+import json
 from .config import db
 import pandas as pd
 
@@ -25,4 +26,7 @@ def get_history_by_symbol(symbol):
         'close': close
     }
     df = pd.DataFrame(d)    
+    df.to_csv("test.csv", index=False)
     return df
+
+get_history_by_symbol("FPT")
