@@ -48,7 +48,7 @@ st.title("Financial App")
 img_url = "https://static.fireant.vn/individuals/photo/{}?width=75&height=75"
 team_data = {
     "Họ và tên": ["Trần Văn Nhân", "Nguyễn Quốc Vinh", "Hồ Mạnh Tiến"],
-    "MSSV": [20520672, 20522160, 20520317]
+    "MSSV": ["20520672", "20522160", "20520317"]
 }
 if "page" not in st.session_state:
     st.session_state["page"] = "Home"
@@ -94,11 +94,7 @@ def show_dividend(symbol):
     st.session_state["data"] = data
 
 def show_finance_metrics(symbol):
-    data = {
-        "indicators": get_indicator_by_symbol(symbol),
-        "report_bs": get_report_bs_by_symbol(symbol),
-        "report_is": get_report_is_by_symbol(symbol),
-    }
+    data = get_metric_by_symbol(symbol)
     st.session_state["page"] = "metrics"
     st.session_state["data"] = data
 
@@ -111,14 +107,14 @@ def get_forecast(data, next_date):
     forcast_data = forcast(data=data, next_date=next_date)
     st.session_state["forcast_data"] = forcast_data
 
-def pre_q(max_len):
-    current_quarter = st.session_state["current_quarter"]
+def pre_q(max_len, ss_key):
+    current_quarter = st.session_state[ss_key]
     if current_quarter + 1 < max_len:
-        st.session_state["current_quarter"] = current_quarter + 1
+        st.session_state[ss_key] = current_quarter + 1
 
-def next_q():
-    if st.session_state["current_quarter"] - 1 >= 0:
-        st.session_state["current_quarter"] -= 1
+def next_q(ss_key, min_len = 0):
+    if st.session_state[ss_key] - 1 >= min_len:
+        st.session_state[ss_key] -= 1
 
 with st.sidebar:
     symbol = st.selectbox("Symbol",  get_symbols())
@@ -331,9 +327,91 @@ elif st.session_state["page"] == "dividend":
     st.bar_chart(chart, x="Năm", y="Cổ tức bằng CP", height=500)
     
 elif st.session_state["page"] == "metrics":
-    st.write("metrics")
     data = st.session_state["data"]
-    data
+    rp_is = data["is"]
+    rp_bs = data["bs"]
+    indi = data["indicator"]
+
+    st.write("Kết quả kinh doanh")
+    if rp_is:
+        rp_is_quar = len(rp_is["columns"])
+        if "is_current_quarter" not in st.session_state:
+            st.session_state["is_current_quarter"] = 0
+        with st.container():
+            cols = st.columns([2, 1, 1, 1, 1])
+            with cols[0]:
+                btn_cols = st.columns(2)
+                with btn_cols[0]:
+                    st.button("Trước", key=str(uuid.uuid4()), on_click=pre_q, args=[rp_is_quar - 5, "is_current_quarter"])
+                with btn_cols[1]:
+                    st.button("Sau", key=str(uuid.uuid4()), on_click=next_q, args=["is_current_quarter"])
+            current_q = st.session_state["is_current_quarter"]
+            for col in range(4, 0, -1):
+                with cols[5 - col]:
+                    st.markdown("<h6 style='color:green;'>{}</h6>".format(rp_is["columns"][rp_is_quar - col - current_q]), unsafe_allow_html=True)
+        for item in rp_is["rows"]:
+            with st.container():
+                cols = st.columns([2, 1, 1, 1, 1])
+                with cols[0]:
+                    st.write(item[0])
+                for col in range(4, 0, -1):
+                    with cols[5 - col]:
+                        value = item[rp_is_quar - col - current_q]
+                        # st.write(str(value))
+                        if value is not None and value > 0:
+                            value /= 1000000
+                            value = round(value, 0)
+                            value = format_currency(int(value)).replace(".","",1)
+                            st.write(value)
+                        else:
+                            if item["level"] != 1:
+                                st.write("0")
+    st.divider()
+    st.write("Cân đối kế toán")
+    if rp_bs:
+        rp_bs_quar = len(rp_bs["columns"])
+        if "bs_current_quarter" not in st.session_state:
+            st.session_state["bs_current_quarter"] = 0
+        with st.container():
+            cols = st.columns([2, 1, 1, 1, 1])
+            with cols[0]:
+                btn_cols = st.columns(2)
+                with btn_cols[0]:
+                    st.button("Trước", key=str(uuid.uuid4()), on_click=pre_q, args=[rp_bs_quar - 5, "bs_current_quarter"])
+                with btn_cols[1]:
+                    st.button("Sau", key=str(uuid.uuid4()), on_click=next_q, args=["bs_current_quarter"])
+            current_q = st.session_state["bs_current_quarter"]
+            for col in range(4, 0, -1):
+                with cols[5 - col]:
+                    st.markdown("<h6 style='color:green;'>{}</h6>".format(rp_bs["columns"][rp_bs_quar - col - current_q]), unsafe_allow_html=True)
+        for item in rp_bs["rows"]:
+            with st.container():
+                cols = st.columns([2, 1, 1, 1, 1])
+                with cols[0]:
+                    st.write(item[0])
+                for col in range(4, 0, -1):
+                    with cols[5 - col]:
+                        value = item[rp_bs_quar - col - current_q]
+                        # st.write(str(value))
+                        if value is not None and value > 0:
+                            value /= 1000000
+                            value = round(value, 0)
+                            value = format_currency(int(value)).replace(".","",1)
+                            st.write(value)
+                        else:
+                            if item["level"] != 1:
+                                st.write("0")
+    st.divider()
+    st.write("Chỉ số tài chính")
+    for group in indi:
+        with st.expander(group, True):
+            for item in indi[group]:
+                with st.container():
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(item["name"])
+                    with col2:
+                        st.write(round(item["value"], 2) if item["value"] else 0)
 elif st.session_state["page"] == "report":
     data = st.session_state["data"]
 
@@ -353,9 +431,9 @@ elif st.session_state["page"] == "report":
                         with cols[0]:
                             btn_cols = st.columns(3)
                             with btn_cols[0]:
-                                st.button("Trước", key=str(uuid.uuid4()), on_click=pre_q, args=[len(quarters)])
+                                st.button("Trước", key=str(uuid.uuid4()), on_click=pre_q, args=[len(quarters), "current_quarter"])
                             with btn_cols[1]:
-                                st.button("Sau", key=str(uuid.uuid4()), on_click=next_q)
+                                st.button("Sau", key=str(uuid.uuid4()), on_click=next_q, args=["current_quarter"])
                             with btn_cols[2]:
                                 st.write("ĐVT: 1.000.000")
                         current_q = st.session_state["current_quarter"]

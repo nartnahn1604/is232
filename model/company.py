@@ -30,20 +30,36 @@ def get_holders_by_symbol(symbol):
 
     return data
 
-def get_indicator_by_symbol(symbol):
-    data = indicator_coll.find_one({"symbol": symbol})
 
-    return data
+def get_metric_by_symbol(symbol):
+    def get_indicator_by_symbol(symbol):
+        data = indicator_coll.find_one({"symbol": symbol}, {"_id": 0, "symbol": 0})["indicators"]
+        result = {}
 
-def get_report_bs_by_symbol(symbol):
-    data = report_bs_coll.find_one({"symbol": symbol})
+        for item in data:
+            if item["groupName"] not in result:
+                result[item["groupName"]] = [{"name": item["name"], "value": item["value"]}]
+            else:
+                result[item["groupName"]].append({"name": item["name"], "value": item["value"]})
+        return result
 
-    return data
+    def get_report_bs_by_symbol(symbol):
+        data = report_bs_coll.find_one({"symbol": symbol}, {"_id": 0, "symbol": 0})
 
-def get_report_is_by_symbol(symbol):
-    data = report_is_coll.find_one({"symbol": symbol})
+        return data
+    
+    def get_report_is_by_symbol(symbol):
+        data = report_is_coll.find_one({"symbol": symbol}, {"_id": 0, "symbol": 0})
 
-    return data
+        return data
+        
+    result = {
+        "indicator": get_indicator_by_symbol(symbol),
+        "bs": get_report_bs_by_symbol(symbol),
+        "is": get_report_is_by_symbol(symbol)
+    }
+
+    return result
 
 def get_report_full_by_symbol(symbol):
     data = report_full_coll.find_one({"symbol": symbol})
