@@ -12,6 +12,7 @@ from lstm import *
 from model.symbol import get_symbols
 from model.history import get_history_by_symbol
 from model.company import *
+from model.dividend import *
 from utils import *
 
 #region Style
@@ -88,7 +89,7 @@ def show_shareholders(symbol):
     st.session_state["data"] = data
 
 def show_dividend(symbol):
-    data = None
+    data = get_dividend_event_by_symbol(symbol)
     st.session_state["page"] = "dividend"
     st.session_state["data"] = data
 
@@ -319,7 +320,16 @@ elif st.session_state["page"] == "holder":
     st.dataframe(holder_chart, hide_index=True, use_container_width=True)
     st.bar_chart(holder_chart, x="Thành phần")
 elif st.session_state["page"] == "dividend":
-    st.write("dividend")
+    data = st.session_state["data"]
+    event = data["event"]
+    chart = data["chart"]
+    st.dataframe(event, width=2000, hide_index=True)
+    st.divider()
+    st.write("Cổ tức bằng tiền (đ)")
+    st.bar_chart(chart, x="Năm", y="Cổ tức bằng tiền", height=500)
+    st.write("Cổ tức bằng CP (%)")
+    st.bar_chart(chart, x="Năm", y="Cổ tức bằng CP", height=500)
+    
 elif st.session_state["page"] == "metrics":
     st.write("metrics")
     data = st.session_state["data"]
