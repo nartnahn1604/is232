@@ -1,6 +1,7 @@
 import datetime
 import json
 import time
+import uuid
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
@@ -11,6 +12,7 @@ from lstm import *
 from model.symbol import get_symbols
 from model.history import get_history_by_symbol
 from model.company import *
+from utils import *
 
 #region Style
 st.markdown("""
@@ -107,6 +109,15 @@ def show_finance_report(symbol):
 def get_forecast(data, next_date):
     forcast_data = forcast(data=data, next_date=next_date)
     st.session_state["forcast_data"] = forcast_data
+
+def pre_q(max_len):
+    current_quarter = st.session_state["current_quarter"]
+    if current_quarter + 1 < max_len:
+        st.session_state["current_quarter"] = current_quarter + 1
+
+def next_q():
+    if st.session_state["current_quarter"] - 1 >= 0:
+        st.session_state["current_quarter"] -= 1
 
 with st.sidebar:
     symbol = st.selectbox("Symbol",  get_symbols())
@@ -314,20 +325,53 @@ elif st.session_state["page"] == "metrics":
     data = st.session_state["data"]
     data
 elif st.session_state["page"] == "report":
-    st.write("report")
     data = st.session_state["data"]
 
     with st.container():
-        for item in data["data"]:
-            if item:
-                cols = st.columns(9)
-                for fields in item:
+        tabs = st.tabs(["Cân đối kế toán", "Kết quả kinh doanh", "LCTT trực tiếp", "LCTT gián tiếp"])
+        for i in range(len(data["data"])):
+            with tabs[i]:
+                items = data["data"][i]
+                quarters = []
+                if items:
+                    if "current_quarter" not in st.session_state:
+                        st.session_state["current_quarter"] = 0
+                    for item in items[0]["values"]:
+                        quarters.append(item["period"])
                     with st.container():
+                        cols = st.columns([3, 1, 1, 1, 1])
                         with cols[0]:
-                            st.write(fields["name"])
-                        for i in range(len(fields["values"])):
-                            with cols[i + 1]:
-                                st.write(fields["values"][i]["value"] if fields["values"][i]["value"] is not None else fields["values"][i]["period"])
+                            btn_cols = st.columns(3)
+                            with btn_cols[0]:
+                                st.button("Trước", key=str(uuid.uuid4()), on_click=pre_q, args=[len(quarters)])
+                            with btn_cols[1]:
+                                st.button("Sau", key=str(uuid.uuid4()), on_click=next_q)
+                            with btn_cols[2]:
+                                st.write("ĐVT: 1.000.000")
+                        current_q = st.session_state["current_quarter"]
+                        for col in range(4, 0, -1):
+                            with cols[5 - col]:
+                                st.markdown(f"<h6 style='color:green;'>{quarters[len(quarters) - col - current_q]}</h6>", unsafe_allow_html=True)
+                    for item in items:
+                        if item["level"] == 1:
+                            st.divider()
+                        with st.container():
+                            cols = st.columns([3, 1, 1, 1, 1])
+                            with cols[0]:
+                                st.markdown(format_lv(item["level"], item["name"]), unsafe_allow_html=True)
+                            for col in range(4, 0, -1):
+                                with cols[5 - col]:
+                                    value = item["values"][len(quarters) - col - current_q]["value"]
+                                    if value is not None and value > 0:
+                                        value /= 1000000
+                                        value = round(value, 0)
+                                        value = format_currency(int(value)).replace(".","",1)
+                                        st.write(value)
+                                    else:
+                                        if item["level"] != 1:
+                                            st.write("0")
+                        # if item["level"] == 1:
+                        #     st.divider()
 else:
     team = pd.DataFrame(team_data)
-    st.table(team)
+    st.dataframe(team, hide_index=True)
