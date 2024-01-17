@@ -316,14 +316,15 @@ elif st.session_state["page"] == "holder":
     st.dataframe(holder_chart, hide_index=True, use_container_width=True)
     st.bar_chart(holder_chart, x="Thành phần")
 elif st.session_state["page"] == "dividend":
+    st.subheader("Sự kiện")
     data = st.session_state["data"]
     event = data["event"]
     chart = data["chart"]
     st.dataframe(event, width=2000, hide_index=True)
     st.divider()
-    st.write("Cổ tức bằng tiền (đ)")
+    st.subheader("Cổ tức bằng tiền (đ)")
     st.bar_chart(chart, x="Năm", y="Cổ tức bằng tiền", height=500)
-    st.write("Cổ tức bằng CP (%)")
+    st.subheader("Cổ tức bằng CP (%)")
     st.bar_chart(chart, x="Năm", y="Cổ tức bằng CP", height=500)
     
 elif st.session_state["page"] == "metrics":
@@ -332,7 +333,7 @@ elif st.session_state["page"] == "metrics":
     rp_bs = data["bs"]
     indi = data["indicator"]
 
-    st.write("Kết quả kinh doanh")
+    st.subheader("Kết quả kinh doanh")
     if rp_is:
         rp_is_quar = len(rp_is["columns"])
         if "is_current_quarter" not in st.session_state:
@@ -367,7 +368,7 @@ elif st.session_state["page"] == "metrics":
                             if item["level"] != 1:
                                 st.write("0")
     st.divider()
-    st.write("Cân đối kế toán")
+    st.subheader("Cân đối kế toán")
     if rp_bs:
         rp_bs_quar = len(rp_bs["columns"])
         if "bs_current_quarter" not in st.session_state:
@@ -402,7 +403,7 @@ elif st.session_state["page"] == "metrics":
                             if item["level"] != 1:
                                 st.write("0")
     st.divider()
-    st.write("Chỉ số tài chính")
+    st.subheader("Chỉ số tài chính")
     for group in indi:
         with st.expander(group, True):
             for item in indi[group]:
